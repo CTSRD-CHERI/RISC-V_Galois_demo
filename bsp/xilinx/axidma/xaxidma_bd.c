@@ -60,6 +60,7 @@
 
 #include "xaxidma_bd.h"
 #include <stdio.h>
+#include <cheri/cheri-utility.h>
 
 /************************** Function Prototypes ******************************/
 
@@ -140,11 +141,15 @@ u32 XAxiDma_BdSetBufAddr(XAxiDma_Bd* BdPtr, UINTPTR Addr)
 		}
 	}
 
+#ifdef _CAP_HW_
+	XAxiDma_BdWriteCap(BdPtr, XAXIDMA_BD_BUFA_CAP_OFFSET, Addr);
+#else
 #if defined(__aarch64__) || defined(__arch64__)
 	XAxiDma_BdWrite64(BdPtr, XAXIDMA_BD_BUFA_OFFSET, Addr);
 #else
 	XAxiDma_BdWrite(BdPtr, XAXIDMA_BD_BUFA_OFFSET, Addr);
 #endif
+#endif // _CAP_HW_
 
 	return XST_SUCCESS;
 }
@@ -175,11 +180,15 @@ u32 XAxiDma_BdSetBufAddrMicroMode(XAxiDma_Bd* BdPtr, UINTPTR Addr)
 			return XST_INVALID_PARAM;
 	}
 
+#ifdef _CAP_HW_
+	XAxiDma_BdWriteCap(BdPtr, XAXIDMA_BD_BUFA_CAP_OFFSET, Addr);
+#else
 #if defined(__aarch64__) || defined(__arch64__)
 	XAxiDma_BdWrite64(BdPtr, XAXIDMA_BD_BUFA_OFFSET, Addr);
 #else
 	XAxiDma_BdWrite(BdPtr, XAXIDMA_BD_BUFA_OFFSET, Addr);
 #endif
+#endif // _CAP_HW_
 
 	return XST_SUCCESS;
 }
@@ -309,10 +318,17 @@ void XAxiDma_DumpBd(XAxiDma_Bd* BdPtr)
 {
 
 	printf("Dump BD %x:\r\n", (unsigned int)(UINTPTR)BdPtr);
-	printf("\tNext Bd Ptr: %x\r\n",
-	    (unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_NDESC_OFFSET));
-	printf("\tBuff addr: %x\r\n",
-	    (unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_BUFA_OFFSET));
+	#ifdef _CAP_HW_
+		printf("\tNext Bd Cap:\r\n\t");
+			cheri_print_cap(&(XAxiDma_BdRead(BdPtr, XAXIDMA_BD_NDESC_CAP_OFFSET)));
+		printf("\tBuf Cap:\r\n\t");
+			cheri_print_cap(&(XAxiDma_BdRead(BdPtr, XAXIDMA_BD_BUFA_CAP_OFFSET)));
+	#else
+		printf("\tNext Bd Ptr: %x\r\n",
+			(unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_NDESC_OFFSET));
+		printf("\tBuff addr: %x\r\n",
+			(unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_BUFA_OFFSET));
+	#endif
 	printf("\tMCDMA Fields: %x\r\n",
 	    (unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_MCCTL_OFFSET));
 	printf("\tVSIZE_STRIDE: %x\r\n",

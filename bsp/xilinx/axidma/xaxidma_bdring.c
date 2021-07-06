@@ -74,6 +74,7 @@
 #include "xaxidma_bdring.h"
 #include <stdio.h>
 #include "FreeRTOS.h" // pvPortMalloc
+#include <cheri/cheri-utility.h>
 
 /************************** Constant Definitions *****************************/
 /* Use 100 milliseconds for 100 MHz
@@ -226,6 +227,10 @@ int XAxiDma_UpdateBdRingCDesc(XAxiDma_BdRing* RingPtr)
 						XAxiDma_WriteReg(RegBase,
 								 XAXIDMA_CDESC_MSB_OFFSET,
 								 UPPER_32_BITS(XAXIDMA_VIRT_TO_PHYS(BdPtr)));
+					#ifdef _CAP_HW_
+						XAxiDma_WriteCap(RegBase, XAXIDMA_CDESC_CAP_OFFSET,
+										 BdPtr);
+					#endif
 				}
 				else {
 					XAxiDma_WriteReg(RegBase,
@@ -246,6 +251,10 @@ int XAxiDma_UpdateBdRingCDesc(XAxiDma_BdRing* RingPtr)
 				if (RingPtr->Addr_ext)
 					XAxiDma_WriteReg(RegBase, XAXIDMA_CDESC_MSB_OFFSET,
 							 UPPER_32_BITS(XAXIDMA_VIRT_TO_PHYS(BdPtr)));
+				#ifdef _CAP_HW_
+					XAxiDma_WriteCap(RegBase, XAXIDMA_CDESC_CAP_OFFSET,
+									 BdPtr);
+				#endif
 			}
 		}
 		else {
@@ -270,6 +279,10 @@ int XAxiDma_UpdateBdRingCDesc(XAxiDma_BdRing* RingPtr)
 							if (RingPtr->Addr_ext)
 								XAxiDma_WriteReg(RegBase, XAXIDMA_CDESC_MSB_OFFSET,
 									UPPER_32_BITS(XAXIDMA_VIRT_TO_PHYS(BdPtr)));
+							#ifdef _CAP_HW_
+								XAxiDma_WriteCap(RegBase, XAXIDMA_CDESC_CAP_OFFSET,
+												 BdPtr);
+							#endif
 						}
 						else {
 							XAxiDma_WriteReg(RegBase,
@@ -290,6 +303,10 @@ int XAxiDma_UpdateBdRingCDesc(XAxiDma_BdRing* RingPtr)
 						if (RingPtr->Addr_ext)
 							XAxiDma_WriteReg(RegBase, XAXIDMA_CDESC_MSB_OFFSET,
 									 UPPER_32_BITS(XAXIDMA_VIRT_TO_PHYS(BdPtr)));
+						#ifdef _CAP_HW_
+							XAxiDma_WriteCap(RegBase, XAXIDMA_CDESC_CAP_OFFSET,
+											 BdPtr);
+						#endif
 					}
 					break;
 				}
@@ -422,10 +439,15 @@ u32 XAxiDma_BdRingCreate(XAxiDma_BdRing *RingPtr, UINTPTR PhysAddr,
 	BdVirtAddr = VirtAddr;
 	BdPhysAddr = PhysAddr + RingPtr->Separation;
 	for (i = 1; i < BdCount; i++) {
-		XAxiDma_BdWrite(BdVirtAddr, XAXIDMA_BD_NDESC_OFFSET,
-				(BdPhysAddr & XAXIDMA_DESC_LSB_MASK));
-		XAxiDma_BdWrite(BdVirtAddr, XAXIDMA_BD_NDESC_MSB_OFFSET,
-				UPPER_32_BITS(BdPhysAddr));
+		#ifdef _CAP_HW_
+			XAxiDma_BdWriteCap(BdVirtAddr, XAXIDMA_BD_NDESC_CAP_OFFSET,
+					(BdPhysAddr & XAXIDMA_DESC_LSB_MASK));
+		#else
+			XAxiDma_BdWrite(BdVirtAddr, XAXIDMA_BD_NDESC_OFFSET,
+					(BdPhysAddr & XAXIDMA_DESC_LSB_MASK));
+			XAxiDma_BdWrite(BdVirtAddr, XAXIDMA_BD_NDESC_MSB_OFFSET,
+					UPPER_32_BITS(BdPhysAddr));
+		#endif
 
 		/* Put hardware information in the BDs
 		 */
@@ -442,10 +464,15 @@ u32 XAxiDma_BdRingCreate(XAxiDma_BdRing *RingPtr, UINTPTR PhysAddr,
 	}
 
 	/* At the end of the ring, link the last BD back to the top */
-	XAxiDma_BdWrite(BdVirtAddr, XAXIDMA_BD_NDESC_OFFSET,
-			(PhysAddr & XAXIDMA_DESC_LSB_MASK));
-	XAxiDma_BdWrite(BdVirtAddr, XAXIDMA_BD_NDESC_MSB_OFFSET,
-			UPPER_32_BITS(PhysAddr));
+	#ifdef _CAP_HW_
+		XAxiDma_BdWriteCap(BdVirtAddr, XAXIDMA_BD_NDESC_CAP_OFFSET,
+				(PhysAddr & XAXIDMA_DESC_LSB_MASK));
+	#else
+		XAxiDma_BdWrite(BdVirtAddr, XAXIDMA_BD_NDESC_OFFSET,
+				(PhysAddr & XAXIDMA_DESC_LSB_MASK));
+		XAxiDma_BdWrite(BdVirtAddr, XAXIDMA_BD_NDESC_MSB_OFFSET,
+				UPPER_32_BITS(PhysAddr));
+	#endif
 
 
 	/* Setup the last BD's hardware information */
@@ -1547,12 +1574,20 @@ int XAxiDma_BdRingCheck(XAxiDma_BdRing * RingPtr)
 		/* Check next pointer for this BD. It should equal to the
 		 * physical address of next BD
 		 */
-		if (XAxiDma_BdRead(AddrV, XAXIDMA_BD_NDESC_OFFSET) != AddrP) {
+		#ifdef _CAP_HW_
+		if (XAxiDma_BdReadCap(AddrV, XAXIDMA_BD_NDESC_CAP_OFFSET) != AddrP)
+		#else
+		if (XAxiDma_BdRead(AddrV, XAXIDMA_BD_NDESC_OFFSET) != AddrP)
+		#endif
+		{
 
 			printf("BdRingCheck: Next Bd "
 			"ptr %x wrong, expect %x\r\n",
-				(unsigned int)XAxiDma_BdRead(AddrV,
-			        XAXIDMA_BD_NDESC_OFFSET),
+				#ifdef _CAP_HW_
+				(unsigned int)XAxiDma_BdReadCap(AddrV, XAXIDMA_BD_NDESC_CAP_OFFSET),
+				#else
+				(unsigned int)XAxiDma_BdRead(AddrV, XAXIDMA_BD_NDESC_OFFSET),
+				#endif
 				(unsigned int)AddrP);
 
 			return XST_DMA_SG_LIST_ERROR;
@@ -1565,13 +1600,22 @@ int XAxiDma_BdRingCheck(XAxiDma_BdRing * RingPtr)
 
 	XAXIDMA_CACHE_INVALIDATE(AddrV);
 	/* Last BD should point back to the beginning of ring */
+	#ifdef _CAP_HW_
+	if (XAxiDma_BdReadCap(AddrV, XAXIDMA_BD_NDESC_CAP_OFFSET) !=
+		RingPtr->FirstBdPhysAddr)
+	#else
 	if (XAxiDma_BdRead(AddrV, XAXIDMA_BD_NDESC_OFFSET) !=
-	    RingPtr->FirstBdPhysAddr) {
+		RingPtr->FirstBdPhysAddr)
+	#endif
+	{
 
 		printf("BdRingCheck: last Bd Next BD "
 		"ptr %x wrong, expect %x\r\n",
-			(unsigned int)XAxiDma_BdRead(AddrV,
-		          XAXIDMA_BD_NDESC_OFFSET),
+			#ifdef _CAP_HW_
+			(unsigned int)XAxiDma_BdReadCap(AddrV, XAXIDMA_BD_NDESC_CAP_OFFSET),
+			#else
+			(unsigned int)XAxiDma_BdRead(AddrV, XAXIDMA_BD_NDESC_OFFSET),
+			#endif
 			(unsigned int)RingPtr->FirstBdPhysAddr);
 
 		return XST_DMA_SG_LIST_ERROR;

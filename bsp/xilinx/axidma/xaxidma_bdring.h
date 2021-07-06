@@ -230,29 +230,55 @@ typedef struct {
 *		This function is used only when system is configured as SG mode
 *
 *****************************************************************************/
-#define XAxiDma_BdRingSnapShotCurrBd(RingPtr)		  \
-	{								  \
-		if (!RingPtr->IsRxChannel) {				  \
-			(RingPtr)->BdaRestart = 			  \
-				(XAxiDma_Bd *)(UINTPTR)XAxiDma_ReadReg(		  \
-					(RingPtr)->ChanBase,  		  \
-					XAXIDMA_CDESC_OFFSET);		  \
-		} else {						  \
-			if (!RingPtr->RingIndex) {				  \
-				(RingPtr)->BdaRestart = 		  \
-				(XAxiDma_Bd *)(UINTPTR)XAxiDma_ReadReg(            \
-					(RingPtr)->ChanBase, 		  \
-					XAXIDMA_CDESC_OFFSET);		  \
-			} else {					  \
-				(RingPtr)->BdaRestart = 		  \
-				(XAxiDma_Bd *)(UINTPTR)XAxiDma_ReadReg( 		  \
-				(RingPtr)->ChanBase,                      \
-				(XAXIDMA_RX_CDESC0_OFFSET +		  \
-                                (RingPtr->RingIndex - 1) * 		  \
-					XAXIDMA_RX_NDESC_OFFSET)); 	  \
-			}						  \
-		}							  \
-	}
+#ifdef _CAP_HW_
+	#define XAxiDma_BdRingSnapShotCurrBd(RingPtr)				\
+		{														\
+			if (!RingPtr->IsRxChannel) {						\
+				(RingPtr)->BdaRestart =							\
+					(XAxiDma_Bd *)(UINTPTR)XAxiDma_ReadCap(		\
+						(RingPtr)->ChanBase,					\
+						XAXIDMA_CDESC_CAP_OFFSET);				\
+			} else {											\
+				if (!RingPtr->RingIndex) {						\
+					(RingPtr)->BdaRestart =						\
+					(XAxiDma_Bd *)(UINTPTR)XAxiDma_ReadCap(		\
+						(RingPtr)->ChanBase,					\
+						XAXIDMA_CDESC_CAP_OFFSET);				\
+				} else {										\
+					(RingPtr)->BdaRestart =						\
+					(XAxiDma_Bd *)(UINTPTR)XAxiDma_ReadReg(		\
+					(RingPtr)->ChanBase,						\
+					(XAXIDMA_RX_CDESC0_OFFSET +					\
+									(RingPtr->RingIndex - 1) *	\
+						XAXIDMA_RX_NDESC_OFFSET));				\
+				}												\
+			}													\
+		}
+#else
+	#define XAxiDma_BdRingSnapShotCurrBd(RingPtr)				\
+		{														\
+			if (!RingPtr->IsRxChannel) {						\
+				(RingPtr)->BdaRestart =							\
+					(XAxiDma_Bd *)(UINTPTR)XAxiDma_ReadReg(		\
+						(RingPtr)->ChanBase,					\
+						XAXIDMA_CDESC_OFFSET);					\
+			} else {											\
+				if (!RingPtr->RingIndex) {						\
+					(RingPtr)->BdaRestart =						\
+					(XAxiDma_Bd *)(UINTPTR)XAxiDma_ReadReg(		\
+						(RingPtr)->ChanBase,					\
+						XAXIDMA_CDESC_OFFSET);					\
+				} else {										\
+					(RingPtr)->BdaRestart =						\
+					(XAxiDma_Bd *)(UINTPTR)XAxiDma_ReadReg( 	\
+					(RingPtr)->ChanBase,						\
+					(XAXIDMA_RX_CDESC0_OFFSET +					\
+									(RingPtr->RingIndex - 1) *	\
+						XAXIDMA_RX_NDESC_OFFSET));				\
+				}												\
+			}													\
+		}
+#endif
 
 /****************************************************************************/
 /**

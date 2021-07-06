@@ -167,6 +167,10 @@ typedef u32 XAxiDma_Bd[XAXIDMA_BD_NUM_WORDS];
 ******************************************************************************/
 #define XAxiDma_BdRead(BaseAddress, Offset)				\
 	(*(u32 *)((UINTPTR)(BaseAddress) + (u32)(Offset)))
+#ifdef _CAP_HW_
+#define XAxiDma_BdReadCap(BaseCap, Offset) \
+	(*(uint8_t **)((UINTPTR)(BaseCap) + (u32)(Offset)))
+#endif // _CAP_HW_
 
 /*****************************************************************************/
 /**
@@ -205,6 +209,11 @@ typedef u32 XAxiDma_Bd[XAXIDMA_BD_NUM_WORDS];
 ******************************************************************************/
 #define XAxiDma_BdWrite64(BaseAddress, Offset, Data)			\
 	(*(u64 *)((UINTPTR)(void *)(BaseAddress) + (u32)(Offset))) = (u64)(Data)
+
+#ifdef _CAP_HW_
+#define XAxiDma_BdWriteCap(BaseAddress, Offset, Cap)			\
+	(*(u64 **)((UINTPTR)(void *)(BaseAddress) + (u32)(Offset))) = (uintptr_t)(Cap)
+#endif // _CAP_HW_
 
 /*****************************************************************************/
 /**
@@ -329,6 +338,10 @@ typedef u32 XAxiDma_Bd[XAXIDMA_BD_NUM_WORDS];
  *****************************************************************************/
 #define XAxiDma_BdGetBufAddr(BdPtr)                     \
 	(XAxiDma_BdRead((BdPtr), XAXIDMA_BD_BUFA_OFFSET))
+#ifdef _CAP_HW_
+#define XAxiDma_BdGetBufCap(BdPtr)                     \
+	(XAxiDma_BdReadCap((BdPtr), XAXIDMA_BD_BUFA_CAP_OFFSET))
+#endif // _CAP_HW_
 
 /*****************************************************************************/
 /**

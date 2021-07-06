@@ -76,10 +76,14 @@ extern "C" {
 /** @name Buffer Descriptor Alignment
  *  @{
  */
+#ifdef _CAP_HW_
+#define XAXIDMA_BD_MINIMUM_ALIGNMENT	0x80
+#else
 #define XAXIDMA_BD_MINIMUM_ALIGNMENT	0x40	/**< Minimum byte alignment
 						requirement for descriptors to
 						satisfy both hardware/software
 						needs */
+#endif // _CAP_HW_
 /*@}*/
 
 /** @name Micro DMA Buffer Address Alignment
@@ -119,6 +123,11 @@ extern "C" {
 #define XAXIDMA_CDESC_MSB_OFFSET 0x0000000C   /**< Current descriptor pointer */
 #define XAXIDMA_TDESC_OFFSET	 0x00000010   /**< Tail descriptor pointer */
 #define XAXIDMA_TDESC_MSB_OFFSET 0x00000014   /**< Tail descriptor pointer */
+#ifdef _CAP_HW_
+#define XAXIDMA_CDESC_CAP_OFFSET 0x00000020
+#endif // _CAP_HW_
+
+
 #define XAXIDMA_SRCADDR_OFFSET	 0x00000018   /**< Simple mode source address
 						pointer */
 #define XAXIDMA_SRCADDR_MSB_OFFSET	0x0000001C  /**< Simple mode source address
@@ -199,10 +208,52 @@ extern "C" {
 
 /** @name Buffer Descriptor offsets
  *  USR* fields are defined by higher level IP.
- *  setup for EMAC type devices. The first 13 words are used by hardware.
- *  All words after the 13rd word are for software use only.
+ *  setup for EMAC type devices. The first few words are used by hardware.
+ *  All words after the hardware words are for software use only.
+ *  The number of hardware words is dependent on whether the DMA engine
+ *  supports CHERI or not. If it does not, there are 13 hardware words, and if
+ *  it does there are 16.
+ *  The order of the hardware words also depends on whether the DMA engine
+ *  supports CHERI or not.
  *  @{
  */
+#ifdef _CAP_HW_
+#define XAXIDMA_BD_NUM_WORDS		19U  /**< Total number of words for
+					       * one BD*/
+#define XAXIDMA_BD_HW_NUM_BYTES		64  /**< Number of bytes hw used */
+
+#define XAXIDMA_BD_NDESC_CAP_OFFSET		0x00  /**< Next descriptor pointer */
+#define XAXIDMA_BD_NDESC_OFFSET			XAXIDMA_BD_NDESC_CAP_OFFSET
+#define XAXIDMA_BD_NDESC_MSB_OFFSET		(XAXIDMA_BD_NDESC_OFFSET + 0x04)
+
+#define XAXIDMA_BD_BUFA_CAP_OFFSET		(XAXIDMA_BD_NDESC_CAP_OFFSET \
+											+ __SIZEOF_CHERI_CAPABILITY__) /**< Buffer address pointer */
+#define XAXIDMA_BD_BUFA_OFFSET			XAXIDMA_BD_BUFA_CAP_OFFSET
+#define XAXIDMA_BD_BUFA_MSB_OFFSET		(XAXIDMA_BD_BUFA_OFFSET + 0x04)
+
+// These two are unused with the bluespec implementation
+#define XAXIDMA_BD_MCCTL_OFFSET		0x10  /**< Multichannel Control Fields */
+#define XAXIDMA_BD_STRIDE_VSIZE_OFFSET	0x14  /**< 2D Transfer Sizes */
+
+#define XAXIDMA_BD_CTRL_LEN_OFFSET	0x20  /**< Control/buffer length */
+#define XAXIDMA_BD_STS_OFFSET		0x24  /**< Status */
+
+#define XAXIDMA_BD_USR0_OFFSET		0x28  /**< User IP specific word0 */
+#define XAXIDMA_BD_USR1_OFFSET		0x2C  /**< User IP specific word1 */
+#define XAXIDMA_BD_USR2_OFFSET		0x30  /**< User IP specific word2 */
+#define XAXIDMA_BD_USR3_OFFSET		0x34  /**< User IP specific word3 */
+#define XAXIDMA_BD_USR4_OFFSET		0x38  /**< User IP specific word4 */
+// offset 0x3C is also reserved for hardware
+#define XAXIDMA_BD_ID_OFFSET		0x40  /**< Sw ID */
+#define XAXIDMA_BD_HAS_STSCNTRL_OFFSET	0x44  /**< Whether has stscntrl strm */
+#define XAXIDMA_BD_HAS_DRE_OFFSET	0x48  /**< Whether has DRE */
+
+#else
+
+#define XAXIDMA_BD_NUM_WORDS		16U  /**< Total number of words for
+					       * one BD*/
+#define XAXIDMA_BD_HW_NUM_BYTES		52  /**< Number of bytes hw used */
+
 #define XAXIDMA_BD_NDESC_OFFSET		0x00  /**< Next descriptor pointer */
 #define XAXIDMA_BD_NDESC_MSB_OFFSET	0x04  /**< Next descriptor pointer */
 #define XAXIDMA_BD_BUFA_OFFSET		0x08  /**< Buffer address */
@@ -222,19 +273,17 @@ extern "C" {
 #define XAXIDMA_BD_HAS_STSCNTRL_OFFSET	0x38  /**< Whether has stscntrl strm */
 #define XAXIDMA_BD_HAS_DRE_OFFSET	0x3C  /**< Whether has DRE */
 
+#endif // _CAP_HW_
+
 #define XAXIDMA_BD_HAS_DRE_MASK		0xF00 /**< Whether has DRE mask */
 #define XAXIDMA_BD_WORDLEN_MASK		0xFF  /**< Whether has DRE mask */
 
 #define XAXIDMA_BD_HAS_DRE_SHIFT	8     /**< Whether has DRE shift */
 #define XAXIDMA_BD_WORDLEN_SHIFT	0     /**< Whether has DRE shift */
 
-#define XAXIDMA_BD_START_CLEAR		8   /**< Offset to start clear */
-#define XAXIDMA_BD_BYTES_TO_CLEAR	48  /**< BD specific bytes to be
+#define XAXIDMA_BD_START_CLEAR		XAXIDMA_BD_BUFA_OFFSET   /**< Offset to start clear */
+#define XAXIDMA_BD_BYTES_TO_CLEAR	(XAXIDMA_BD_HW_NUM_BYTES + 4 - XAXIDMA_BD_START_CLEAR)  /**< BD specific bytes to be
 					      *  cleared */
-
-#define XAXIDMA_BD_NUM_WORDS		16U  /**< Total number of words for
-					       * one BD*/
-#define XAXIDMA_BD_HW_NUM_BYTES		52  /**< Number of bytes hw used */
 
 /* The offset of the last app word.
  */
@@ -315,6 +364,12 @@ extern "C" {
 #define XAxiDma_ReadReg(BaseAddress, RegOffset)             \
     XAxiDma_In32((BaseAddress) + (RegOffset))
 
+#ifdef _CAP_HW_
+	#define XAxiDma_ReadCap(BaseAddress, RegOffset) \
+		(* ((UINTPTR *)((BaseAddress) + (RegOffset))))
+
+#endif
+
 /*****************************************************************************/
 /**
 *
@@ -333,6 +388,11 @@ extern "C" {
 ******************************************************************************/
 #define XAxiDma_WriteReg(BaseAddress, RegOffset, Data)          \
     XAxiDma_Out32((BaseAddress) + (RegOffset), (Data))
+
+#ifdef _CAP_HW_
+#define XAxiDma_WriteCap(BaseAddress, RegOffset, Data)          \
+	*(UINTPTR *)((BaseAddress) + (RegOffset)) = (Data)
+#endif
 
 #ifdef __cplusplus
 }
